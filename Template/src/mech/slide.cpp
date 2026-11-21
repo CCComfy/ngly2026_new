@@ -26,6 +26,10 @@ double manualMv = 0.0;
 std::uint32_t startMs = 0;
 std::uint32_t settleMs = 0;
 
+// 是否归零过。没归零时 getInches() 的 0 只是「上电时停在哪」，
+// 拿它当行程零点本身就是错的，软限位也就不能用它来判断。
+bool zeroed = false;
+
 inline double clampd(double v, double lo, double hi) {
     return v < lo ? lo : (v > hi ? hi : v);
 }
@@ -56,7 +60,10 @@ inline double limited(double mv) {
 }  // namespace
 
 void slide::init() {
-    motorB.set_reversed(SLIDE_B_REVERSED);
+    // 整轴方向 + B 相对 A 的极性。写成异或的「相对关系」：
+    // 翻整轴（SLIDE_DIR_REVERSED）时，B 与 A 的相对极性保持不变。
+    motorA.set_reversed(SLIDE_DIR_REVERSED);
+    motorB.set_reversed(SLIDE_DIR_REVERSED != SLIDE_B_REVERSED);
     motorA.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     motorB.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     motorA.tare_position();
@@ -67,15 +74,21 @@ void slide::init() {
     lastOutMv = 0.0;
     manualMode = false;
     manualMv = 0.0;
+    zeroed = false;   // 刚上电，位置不可信
 }
 
 void slide::update() {
     // 手动绕开 PID，但限位、过温、slew 都留着。
     // 手动是唯一有人主动往限位里顶的场景，这里更需要保护。
     if (manualMode) {
+        // 软限位只在「归零过 + 编码器有数」时才生效。
+        // 没归零时位置 0 不代表真的在底部；端口没插电机时 getInches() 是 INFINITY。
+        // 这两种情况都会让按键立刻被判成越界、电压被清零，表现就是「按键没反应」。
         const double pos = getInches();
-        if ((pos <= SLIDE_MIN_IN && manualMv < 0) || (pos >= SLIDE_MAX_IN && manualMv > 0)) {
-            manualMv = 0;
+        if (zeroed && std::isfinite(pos)) {
+            if ((pos <= SLIDE_MIN_IN && manualMv < 0) || (pos >= SLIDE_MAX_IN && manualMv > 0)) {
+                manualMv = 0;
+            }
         }
         writeBoth(limited(manualMv));
         return;
@@ -175,6 +188,10 @@ bool slide::isBusy() { return active; }
 
 bool slide::isAtTarget() { return atTarget; }
 
+bool slide::sensorOk() { return std::isfinite(getInches()); }
+
+bool slide::isZeroed() { return zeroed; }
+
 double slide::getInches() { return motorA.get_position() * SLIDE_IN_PER_DEG; }
 
 double slide::getTemperature() {
@@ -185,6 +202,7 @@ void slide::tare() {
     motorA.tare_position();
     motorB.tare_position();
     targetIn = 0.0;
+    zeroed = true;   // 从这里开始，位置 0 才是真的 0
 }
 
 // 上电时滑轨可能停在中间，位置全错。慢速下到底，堵转处定义为 0。

@@ -14,6 +14,11 @@ void initialize()
     pros::lcd::initialize();
     g_display.draw("[BOOT]");
 
+    // 机构上电必须排在 IMU 校准之前：mech::init() 起的是独立的 10ms 控制任务，
+    // 放在阻塞校准后面的话，IMU 一卡住（没接、校准超时）机构就永远没有控制任务，
+    // 表现就是「按键毫无反应」。机构先起，底盘再校准，互不阻塞。
+    mech::init();
+
     // 阻塞式校准（约 2 秒）：这一行返回之前车必须完全静止。
     // 否则 IMU 会把「启动时的晃动」当成零位，之后所有转向都是歪的。
     g_chassis.resetImu();
@@ -23,10 +28,8 @@ void initialize()
     // 手柄调试屏：起一个 5Hz 的后台任务，自动赛里不用再管它画屏
     dbg::start(g_master);
 
-    // 机构上电：先起控制任务，再归零（滑轨降到堵转、摇臂压到限位），
-    // 最后收到行驶位。归零两轴各最多 3 秒，参数没标定时会一直撞，
-    // 调试期先注释掉 home 和 goTo 这两行。
-    mech::init();
+    // 归零：滑轨降到堵转、摇臂压到限位，最后收到行驶位。
+    // 两轴各最多 3 秒，参数没标定时会一直撞，调试期先注释掉 home 和 goTo 这两行。
     // mech::home();
     // mech::goTo(mech::TRAVEL, 1500);
 
@@ -68,36 +71,34 @@ void autonomous()
     g_chassis.setPose(0, 0, 0);
 
     dbg::step("PIN"); // 放初始 pin
-    g_chassis.driveDistance(30, 10000);
+    g_chassis.driveDistance(26.4, 2000);
     g_chassis.turnTo(90, 2000);
-    g_chassis.driveDistance(1, 2000);
-    // mech::goTo(mech::LOW_GOAL, 2000);
+    g_chassis.driveDistance(22, 2000);
+    //mech::goTo(mech::LOW_GOAL, 2000);
 
-    // dbg::step("GRAB"); // 退出来取第一个块
-    g_chassis.driveDistance(-1, 2000);
+    //dbg::step("GRAB"); // 退出来取第一个块
+    g_chassis.driveDistance(-22, 2000);
     g_chassis.turnTo(45, 2000);
-    // mech::goTo(mech::GROUND, 2000);
-    g_chassis.driveDistance(2.5, 5000);
-    // claw::grab();
-    // mech::goTo(mech::CARRY, 2000);
+    //mech::goTo(mech::GROUND, 2000);
+    g_chassis.driveDistance(55, 5000);
+    //claw::grab();
+    //mech::goTo(mech::CARRY, 2000);
 
-    // dbg::step("STACK"); // 回场地中间堆叠
-    g_chassis.driveDistance(-1.25, 2000);
-    g_chassis.turnTo(135, 2000);
-    g_chassis.driveDistance(1.25, 2000);
-    // mech::goTo(mech::STACK, 2000);
-    // claw::release();
-    // mech::goTo(mech::TRAVEL, 2000);
+    //dbg::step("STACK"); // 回场地中间堆叠
+    g_chassis.driveDistance(-55, 2000);
+    g_chassis.turnTo(90, 2000);
+    g_chassis.driveDistance(22, 2000);
+    //mech::goTo(mech::STACK, 2000);
+    //claw::release();
+    //mech::goTo(mech::TRAVEL, 2000);
 
-    // dbg::step("HOME"); // 收车
-    g_chassis.driveDistance(-1.25, 2000);
-    g_chassis.turnTo(225, 2000);
-    g_chassis.driveDistance(1.25, 2000);
+    //dbg::step("HOME"); // 收车
+    g_chassis.driveDistance(-22, 2000);
     g_chassis.turnTo(0, 2000);
-    g_chassis.driveDistance(-1.28, 2000);
-    g_chassis.driveDistance(0.5, 2000);
+    g_chassis.driveDistance(-28, 2000);
+    g_chassis.driveDistance(5, 2000);
 
-    // dbg::step("DONE");
+    dbg::step("DONE");
     g_chassis.stop();
 }
 

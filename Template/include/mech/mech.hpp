@@ -22,6 +22,9 @@ bool isAtTarget();
 double getInches();
 double getTemperature();
 
+bool sensorOk();   // 编码器读得到有效数：端口上确实插着电机
+bool isZeroed();   // 已经归零过：只有归零后软限位才生效
+
 void tare();
 bool zeroByStall(int timeoutMs = 3000);   // 慢速下到底，堵转处定为 0
 
@@ -44,6 +47,10 @@ bool isAtTarget();
 double getAngle();
 double getTemperature();
 
+bool sensorOk();   // 编码器读得到有效数：端口上确实插着电机
+bool isZeroed();   // 已经归零过：只有归零后软限位才生效
+double lastCommandMv();   // 最近一次写给臂电机的电压，排查「按键没到电机」用
+
 void tare();
 bool zeroByStall(int timeoutMs = 3000);
 
@@ -60,6 +67,8 @@ bool isClosed();                   // 程序记账，不代表气缸真的到位
 
 void grabNoWait();                 // 只发指令不等，给需要自己控时序的场合
 void releaseNoWait();
+void toggleNoWait();               // 只翻阀，不等行程；A 键用这个
+bool isSettled();                  // 距离上一次开/合动作已过 CLAW_ACT_MS
 
 }  // namespace claw
 
@@ -83,12 +92,14 @@ inline constexpr Pose STACK{10.0, 20.0, true};       // 叠放
 void init();
 void startTask();
 
+bool taskRunning();   // 10ms 控制任务是否已经起来（没起来按键就只会改标志）
+
 // 上电归零，两轴各最多 3 秒，只在 initialize() 里调一次。
 // 先滑轨后摇臂：滑轨降到底之后摇臂的转动空间最大。
 void home();
 
 bool goTo(const Pose& p, int timeoutMs = 2500);  // false = 超时或参数越界
-void goToAsync(const Pose& p);                   // 只动两轴，爪子用不等版本
+void goToAsync(const Pose& p);                   // 非阻塞；按爪态自动排“先夹/先动”顺序
 
 bool isBusy();
 void emergencyStop();

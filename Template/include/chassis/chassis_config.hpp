@@ -47,7 +47,7 @@ public:
     static constexpr double kDriveKp = 6.0;        // rpm / 英寸
     static constexpr double kDriveMaxRpm = 120.0;
     static constexpr double kDriveMinRpm = 15.0;
-    static constexpr double kDriveTolIn = 2;     // 到位判定（英寸）
+    static constexpr double kDriveTolIn = 0.4;     // 到位判定（英寸）
     static constexpr double kHeadingKp = 2.0;      // 直线纠偏 rpm / 度
 
     // 闭环公共参数
